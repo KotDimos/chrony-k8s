@@ -1,0 +1,120 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chrony-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chrony-config
+  namespace: chrony-system
+data:
+  chrony.conf.tpl: |-
+    user chrony
+    cmdport 0
+    driftfile /var/lib/chrony/chrony.drift
+    makestep 1.0 -1
+    rtcsync
+    bindaddress {{ .HostIP }}
+    port 10123
+    cmdallow 127/8
+    allow
+
+    {{ range .NTPServers }}
+    pool {{ . }} iburst
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: chrony
+  namespace: chrony-system
+  labels:
+    app: chrony
+spec:
+  selector:
+    matchLabels:
+      app: chrony
+  template:
+    metadata:
+      labels:
+        app: chrony
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      containers:
+        - name: chrony
+          image: kotdimos/chrony-k8s:1.0.0
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsGroup: 0
+            runAsNonRoot: false
+            runAsUser: 0
+            capabilities:
+              add:
+                - CHOWN
+                - SYS_TIME
+                - DAC_OVERRIDE
+                - SETGID
+                - SETUID
+              drop:
+                - ALL
+          env:
+            - name: NTP_SERVERS
+              value: time.nist.gov,us.pool.ntp.org,pool.ntp.org,time.google.com
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          ports:
+            - name: ntp
+              containerPort: 10123
+              protocol: UDP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 10Mi
+            limits:
+              cpu: 25m
+              memory: 50Mi
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/chronyc
+                - tracking
+            periodSeconds: 30
+            initialDelaySeconds: 30
+            failureThreshold: 10
+            timeoutSeconds: 15
+          volumeMounts:
+            - name: tz-config
+              mountPath: /etc/localtime
+              readOnly: true
+            - name: tzdata-config
+              mountPath: /etc/timezone
+              readOnly: true
+            - name: etc-chrony
+              mountPath: /etc/chrony
+            - name: var-run
+              mountPath: /var/run
+            - name: chrony-config
+              mountPath: /etc/chrony/chrony.conf.tpl
+              subPath: chrony.conf.tpl
+      volumes:
+        - name: tz-config
+          hostPath:
+            path: /etc/localtime
+        - name: tzdata-config
+          hostPath:
+            path: /etc/timezone
+        - name: etc-chrony
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+        - name: chrony-config
+          configMap:
+            name: chrony-config
+      tolerations:
+        - operator: Exists
