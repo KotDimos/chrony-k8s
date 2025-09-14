@@ -117,4 +117,5 @@ spec:
           configMap:
             name: chrony-config
       tolerations:
-        - operator: Exists
+      - effect: NoSchedule
+        operator: Exists
