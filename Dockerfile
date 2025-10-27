@@ -25,7 +25,7 @@ RUN echo "$CHRONY_VERSION" > version.txt && \
     chown 65535:65535 /opt/chrony/bin/chronyc /opt/chrony/sbin/chronyd
 
 
-FROM golang:1.24 AS builder-app
+FROM golang:1.25 AS builder-app
 
 WORKDIR /workspace
 COPY go.mod .
