@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	ChronydPath          = "/usr/local/bin/chronyd"
+	ChronydBinPath       = "/usr/local/bin/chronyd"
 	ChronydConfigTplPath = "/etc/chrony/chrony.conf.tpl"
 	ChronydConfigPath    = "/etc/chrony/chrony.conf"
 )
@@ -51,7 +51,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cmd := exec.Command(ChronydPath, "-d", "-s", "-f", ChronydConfigPath)
+	cmd := exec.Command(ChronydBinPath, "-d", "-s", "-f", ChronydConfigPath)
 	cmd.Env = os.Environ()
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
